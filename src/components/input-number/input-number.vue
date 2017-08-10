@@ -19,11 +19,13 @@
                 :class="inputClasses"
                 :disabled="disabled"
                 autocomplete="off"
+                :autofocus="autofocus"
                 @focus="focus"
                 @blur="blur"
                 @keydown.stop="keyDown"
                 @change="change"
-                :value="value">
+                :name="name"
+                :value="currentValue">
         </div>
     </div>
 </template>
@@ -58,7 +60,7 @@
 //            return (num1 * m + num2 * m) / m;
 //        }
         m = Math.pow(10, Math.max(sq1, sq2));
-        return (num1 * m + num2 * m) / m;
+        return (Math.round(num1 * m) + Math.round(num2 * m)) / m;
     }
 
     export default {
@@ -89,6 +91,13 @@
             disabled: {
                 type: Boolean,
                 default: false
+            },
+            autofocus: {
+                type: Boolean,
+                default: false
+            },
+            name: {
+                type: String
             }
         },
         data () {
@@ -264,6 +273,12 @@
             },
             currentValue (val) {
                 this.changeVal(val);
+            },
+            min () {
+                this.changeVal(this.currentValue);
+            },
+            max () {
+                this.changeVal(this.currentValue);
             }
         }
     };

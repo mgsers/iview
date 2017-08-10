@@ -1,15 +1,20 @@
 <template>
     <div>
-        <Progress :percent="percent"></Progress>
+        <i-progress :percent="percent"></i-progress>
         <Button-group size="large">
             <Button icon="ios-plus-empty" @click.native="add"></Button>
             <Button icon="ios-minus-empty" @click.native="minus"></Button>
         </Button-group>
-        <Progress :percent="25" :stroke-width="5"></Progress>
-        <Progress :percent="100">
+        <i-progress :percent="25" :stroke-width="5"></i-progress>
+        <i-progress :percent="100">
             <Icon type="checkmark-circled"></Icon>
             <span>成功</span>
-        </Progress>
+        </i-progress>
+        <i-progress :percent="percent"></i-progress>
+        <div style="height: 150px">
+            <i-progress vertical :percent="percent" :stroke-width="20" hide-info></i-progress>
+            <i-progress vertical :percent="percent"></i-progress>
+        </div>
     </div>
 </template>
 <script>

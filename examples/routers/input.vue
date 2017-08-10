@@ -1,26 +1,30 @@
 <template>
-    <div>
-        <Input v-model="value" placeholder="请输入..." style="width: 300px" icon="ios-clock-outline"></Input>
-        <input type="text" v-model="value">
-        {{ value }}
-        <!--<Input v-model="value">-->
-            <!--<span slot="prepend">http://</span>-->
-            <!--<span slot="append">.com</span>-->
-        <!--</Input>-->
+    <div style="width: 100px;">
+        <Input v-model="value1" size="large" placeholder="large size"></Input>
         <br>
-        <Input type="textarea" v-model="value" placeholder="请输入..."></Input>
-        <Input type="textarea" v-model="value" :rows="4" placeholder="请输入..."></Input>
+        <Input v-model="value2" placeholder="default size"></Input>
         <br>
+        <Input v-model="value3" size="small" placeholder="small size"></Input>
         <br>
-        <Input type="textarea" v-model="value" :autosize="true" placeholder="请输入..."></Input>
-        <Input type="textarea" v-model="value" :autosize="{minRows: 2,maxRows: 5}" placeholder="请输入..."></Input>
+        <Input v-model="value1" size="large" placeholder="large size" icon="ios-clock-outline"></Input>
+        <br>
+        <Input v-model="value2" placeholder="default size" icon="ios-clock-outline"></Input>
+        <br>
+        <Input v-model="value3" size="small" placeholder="small size" icon="ios-clock-outline"></Input>
+        <br>
+        <Input v-model="obj.test" type="textarea" autosize></Input>
     </div>
 </template>
 <script>
     export default {
         data () {
             return {
-                value: ''
+                value1: '',
+                value2: '',
+                value3: '',
+                obj: {
+
+                }
             }
         }
     }

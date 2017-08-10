@@ -1,12 +1,13 @@
 <template>
     <div :class="wrapClasses">
         <template v-if="type !== 'textarea'">
-            <div :class="[prefixCls + '-group-prepend']" v-if="prepend" v-show="slotReady" ref="prepend"><slot name="prepend"></slot></div>
-            <i class="ivu-icon" :class="['ivu-icon-' + icon, prefixCls + '-icon']" v-if="icon" @click="handleIconClick"></i>
+            <div :class="[prefixCls + '-group-prepend']" v-if="prepend" v-show="slotReady"><slot name="prepend"></slot></div>
+            <i class="ivu-icon" :class="['ivu-icon-' + icon, prefixCls + '-icon', prefixCls + '-icon-normal']" v-if="icon" @click="handleIconClick"></i>
             <transition name="fade">
                 <i class="ivu-icon ivu-icon-load-c ivu-load-loop" :class="[prefixCls + '-icon', prefixCls + '-icon-validate']" v-if="!icon"></i>
             </transition>
             <input
+                ref="input"
                 :type="type"
                 :class="inputClasses"
                 :placeholder="placeholder"
@@ -16,12 +17,16 @@
                 :name="name"
                 :value="currentValue"
                 :number="number"
+                :autofocus="autofocus"
                 @keyup.enter="handleEnter"
+                @keyup="handleKeyup"
+                @keypress="handleKeypress"
+                @keydown="handleKeydown"
                 @focus="handleFocus"
                 @blur="handleBlur"
                 @input="handleInput"
                 @change="handleChange">
-            <div :class="[prefixCls + '-group-append']" v-if="append" v-show="slotReady" ref="append"><slot name="append"></slot></div>
+            <div :class="[prefixCls + '-group-append']" v-if="append" v-show="slotReady"><slot name="append"></slot></div>
         </template>
         <textarea
             v-else
@@ -34,8 +39,12 @@
             :maxlength="maxlength"
             :readonly="readonly"
             :name="name"
-            :value="value"
+            :value="currentValue"
+            :autofocus="autofocus"
             @keyup.enter="handleEnter"
+            @keyup="handleKeyup"
+            @keypress="handleKeypress"
+            @keydown="handleKeydown"
             @focus="handleFocus"
             @blur="handleBlur"
             @input="handleInput">
@@ -43,7 +52,7 @@
     </div>
 </template>
 <script>
-    import { oneOf } from '../../utils/assist';
+    import { oneOf, findComponentUpward } from '../../utils/assist';
     import calcTextareaHeight from '../../utils/calcTextareaHeight';
     import Emitter from '../../mixins/emitter';
 
@@ -98,6 +107,10 @@
             number: {
                 type: Boolean,
                 default: false
+            },
+            autofocus: {
+                type: Boolean,
+                default: false
             }
         },
         data () {
@@ -118,7 +131,10 @@
                         [`${prefixCls}-wrapper-${this.size}`]: !!this.size,
                         [`${prefixCls}-type`]: this.type,
                         [`${prefixCls}-group`]: this.prepend || this.append,
-                        [`${prefixCls}-group-${this.size}`]: (this.prepend || this.append) && !!this.size
+                        [`${prefixCls}-group-${this.size}`]: (this.prepend || this.append) && !!this.size,
+                        [`${prefixCls}-group-with-prepend`]: this.prepend,
+                        [`${prefixCls}-group-with-append`]: this.append,
+                        [`${prefixCls}-hide-icon`]: this.append  // #554
                     }
                 ];
             },
@@ -141,21 +157,33 @@
             }
         },
         methods: {
-            handleEnter () {
-                this.$emit('on-enter');
+            handleEnter (event) {
+                this.$emit('on-enter', event);
             },
-            handleIconClick () {
-                this.$emit('on-click');
+            handleKeydown (event) {
+                this.$emit('on-keydown', event);
             },
-            handleFocus () {
-                this.$emit('on-focus');
+            handleKeypress(event) {
+                this.$emit('on-keypress', event);
             },
-            handleBlur () {
-                this.$emit('on-blur');
-                this.dispatch('FormItem', 'on-form-blur', this.currentValue);
+            handleKeyup (event) {
+                this.$emit('on-keyup', event);
+            },
+            handleIconClick (event) {
+                this.$emit('on-click', event);
+            },
+            handleFocus (event) {
+                this.$emit('on-focus', event);
+            },
+            handleBlur (event) {
+                this.$emit('on-blur', event);
+                if (!findComponentUpward(this, ['DatePicker', 'TimePicker', 'Cascader', 'Search'])) {
+                    this.dispatch('FormItem', 'on-form-blur', this.currentValue);
+                }
             },
             handleInput (event) {
-                const value = event.target.value;
+                let value = event.target.value;
+                if (this.number) value = Number.isNaN(Number(value)) ? value : Number(value);
                 this.$emit('input', value);
                 this.setCurrentValue(value);
                 this.$emit('on-change', event);
@@ -169,7 +197,9 @@
                     this.resizeTextarea();
                 });
                 this.currentValue = value;
-                this.dispatch('FormItem', 'on-form-change', value);
+                if (!findComponentUpward(this, ['DatePicker', 'TimePicker', 'Cascader', 'Search'])) {
+                    this.dispatch('FormItem', 'on-form-change', value);
+                }
             },
             resizeTextarea () {
                 const autosize = this.autosize;
@@ -181,6 +211,13 @@
                 const maxRows = autosize.maxRows;
 
                 this.textareaStyles = calcTextareaHeight(this.$refs.textarea, minRows, maxRows);
+            },
+            focus() {
+                if (this.type === 'textarea') {
+                    this.$refs.textarea.focus();
+                } else {
+                    this.$refs.input.focus();
+                }
             }
         },
         watch: {

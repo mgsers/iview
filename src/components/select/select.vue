@@ -8,26 +8,33 @@
                 <span class="ivu-tag-text">{{ item.label }}</span>
                 <Icon type="ios-close-empty" @click.native.stop="removeTag(index)"></Icon>
             </div>
-            <span :class="[prefixCls + '-placeholder']" v-show="showPlaceholder && !filterable">{{ placeholder }}</span>
+            <span :class="[prefixCls + '-placeholder']" v-show="showPlaceholder && !filterable">{{ localePlaceholder }}</span>
             <span :class="[prefixCls + '-selected-value']" v-show="!showPlaceholder && !multiple && !filterable">{{ selectedSingle }}</span>
             <input
                 type="text"
                 v-if="filterable"
                 v-model="query"
                 :class="[prefixCls + '-input']"
-                :placeholder="showPlaceholder ? placeholder : ''"
+                :placeholder="showPlaceholder ? localePlaceholder : ''"
                 :style="inputStyle"
                 @blur="handleBlur"
                 @keydown="resetInputState"
                 @keydown.delete="handleInputDelete"
                 ref="input">
             <Icon type="ios-close" :class="[prefixCls + '-arrow']" v-show="showCloseIcon" @click.native.stop="clearSingleSelect"></Icon>
-            <Icon type="arrow-down-b" :class="[prefixCls + '-arrow']"></Icon>
+            <Icon type="arrow-down-b" :class="[prefixCls + '-arrow']" v-if="!remote"></Icon>
         </div>
-        <transition name="slide-up">
-            <Drop v-show="visible" ref="dropdown">
-                <ul v-show="notFound" :class="[prefixCls + '-not-found']"><li>{{ notFoundText }}</li></ul>
-                <ul v-show="!notFound" :class="[prefixCls + '-dropdown-list']" ref="options"><slot></slot></ul>
+        <transition :name="transitionName">
+            <Drop
+                :class="dropdownCls"
+                v-show="dropVisible"
+                :placement="placement"
+                ref="dropdown"
+                :data-transfer="transfer"
+                v-transfer-dom>
+                <ul v-show="notFountShow" :class="[prefixCls + '-not-found']"><li>{{ localeNotFoundText }}</li></ul>
+                <ul v-show="(!notFound && !remote) || (remote && !loading && !notFound)" :class="[prefixCls + '-dropdown-list']"><slot></slot></ul>
+                <ul v-show="loading" :class="[prefixCls + '-loading']">{{ localeLoadingText }}</ul>
             </Drop>
         </transition>
     </div>
@@ -36,19 +43,25 @@
     import Icon from '../icon';
     import Drop from './dropdown.vue';
     import clickoutside from '../../directives/clickoutside';
-    import { oneOf, MutationObserver } from '../../utils/assist';
-    import { t } from '../../locale';
+    import TransferDom from '../../directives/transfer-dom';
+    import { oneOf, findComponentDownward } from '../../utils/assist';
     import Emitter from '../../mixins/emitter';
+    import Locale from '../../mixins/locale';
 
     const prefixCls = 'ivu-select';
 
     export default {
         name: 'iSelect',
-        mixins: [ Emitter ],
+        mixins: [ Emitter, Locale ],
         components: { Icon, Drop },
-        directives: { clickoutside },
+        directives: { clickoutside, TransferDom },
         props: {
             value: {
+                type: [String, Number, Array],
+                default: ''
+            },
+            // 使用时，也得设置 value 才行
+            label: {
                 type: [String, Number, Array],
                 default: ''
             },
@@ -65,10 +78,7 @@
                 default: false
             },
             placeholder: {
-                type: String,
-                default () {
-                    return t('i.select.placeholder');
-                }
+                type: String
             },
             filterable: {
                 type: Boolean,
@@ -76,6 +86,20 @@
             },
             filterMethod: {
                 type: Function
+            },
+            remote: {
+                type: Boolean,
+                default: false
+            },
+            remoteMethod: {
+                type: Function
+            },
+            loading: {
+                type: Boolean,
+                default: false
+            },
+            loadingText: {
+                type: String
             },
             size: {
                 validator (value) {
@@ -87,10 +111,17 @@
                 default: false
             },
             notFoundText: {
-                type: String,
-                default () {
-                    return t('i.select.noMatch');
-                }
+                type: String
+            },
+            placement: {
+                validator (value) {
+                    return oneOf(value, ['top', 'bottom']);
+                },
+                default: 'bottom'
+            },
+            transfer: {
+                type: Boolean,
+                default: false
             }
         },
         data () {
@@ -103,10 +134,13 @@
                 selectedMultiple: [],
                 focusIndex: 0,
                 query: '',
+                lastQuery: '',
+                selectToChangeQuery: false,    // when select an option, set this first and set query, because query is watching, it will emit event
                 inputLength: 20,
                 notFound: false,
                 slotChangeDuration: false,    // if slot change duration and in multiple, set true and after slot change, set false
-                model: this.value
+                model: this.value,
+                currentLabel: this.label
             };
         },
         computed: {
@@ -123,6 +157,12 @@
                     }
                 ];
             },
+            dropdownCls () {
+                return {
+                    [prefixCls + '-dropdown-transfer']: this.transfer,
+                    [prefixCls + '-multiple']: this.multiple && this.transfer
+                };
+            },
             showPlaceholder () {
                 let status = false;
 
@@ -134,6 +174,8 @@
                     if (!this.model.length) {
                         status = true;
                     }
+                } else if( this.model === null){
+                    status = true;
                 }
 
                 return status;
@@ -153,6 +195,40 @@
                 }
 
                 return style;
+            },
+            localePlaceholder () {
+                if (this.placeholder === undefined) {
+                    return this.t('i.select.placeholder');
+                } else {
+                    return this.placeholder;
+                }
+            },
+            localeNotFoundText () {
+                if (this.notFoundText === undefined) {
+                    return this.t('i.select.noMatch');
+                } else {
+                    return this.notFoundText;
+                }
+            },
+            localeLoadingText () {
+                if (this.loadingText === undefined) {
+                    return this.t('i.select.loading');
+                } else {
+                    return this.loadingText;
+                }
+            },
+            transitionName () {
+                return this.placement === 'bottom' ? 'slide-up' : 'slide-down';
+            },
+            dropVisible () {
+                let status = true;
+                const options = this.$slots.default || [];
+                if (!this.loading && this.remote && this.query === '' && !options.length) status = false;
+                return this.visible && status;
+            },
+            notFountShow () {
+                const options = this.$slots.default || [];
+                return (this.notFound && !this.remote) || (this.remote && !this.loading && !options.length);
             }
         },
         methods: {
@@ -160,7 +236,6 @@
                 if (this.disabled) {
                     return false;
                 }
-
                 this.visible = !this.visible;
             },
             hideMenu () {
@@ -211,8 +286,10 @@
                 this.options = options;
 
                 if (init) {
-                    this.updateSingleSelected(true, slot);
-                    this.updateMultipleSelected(true, slot);
+                    if (!this.remote) {
+                        this.updateSingleSelected(true, slot);
+                        this.updateMultipleSelected(true, slot);
+                    }
                 }
             },
             updateSingleSelected (init = false, slot = false) {
@@ -251,7 +328,7 @@
             },
             updateMultipleSelected (init = false, slot = false) {
                 if (this.multiple && Array.isArray(this.model)) {
-                    let selected = [];
+                    let selected = this.remote ? this.selectedMultiple : [];
 
                     for (let i = 0; i < this.model.length; i++) {
                         const model = this.model[i];
@@ -268,7 +345,16 @@
                         }
                     }
 
-                    this.selectedMultiple = selected;
+                    const selectedArray = [];
+                    const selectedObject = {};
+                    selected.forEach(item => {
+                        if (!selectedObject[item.value]) {
+                            selectedArray.push(item);
+                            selectedObject[item.value] = 1;
+                        }
+                    });
+
+                    this.selectedMultiple = this.remote ? selectedArray : selected;
 
                     if (slot) {
                         let selectedModel = [];
@@ -291,6 +377,12 @@
                 if (this.disabled) {
                     return false;
                 }
+
+                if (this.remote) {
+                    const tag = this.model[index];
+                    this.selectedMultiple = this.selectedMultiple.filter(item => item.value !== tag);
+                }
+
                 this.model.splice(index, 1);
 
                 if (this.filterable && this.visible) {
@@ -461,6 +553,12 @@
                                     this.query = child.label === undefined ? child.searchLabel : child.label;
                                 }
                             });
+                            // 如果删除了搜索词，下拉列表也清空了，所以强制调用一次remoteMethod
+                            if (this.remote && this.query !== this.lastQuery) {
+                                this.$nextTick(() => {
+                                    this.query = this.lastQuery;
+                                });
+                            }
                         } else {
                             this.query = '';
                         }
@@ -485,7 +583,7 @@
                 this.query = query;
             },
             modelToQuery() {
-                if (!this.multiple && this.filterable && this.model) {
+                if (!this.multiple && this.filterable && this.model !== undefined) {
                     this.findChild((child) => {
                         if (this.model === child.value) {
                             if (child.label) {
@@ -498,29 +596,74 @@
                         }
                     });
                 }
+            },
+            broadcastQuery (val) {
+                if (findComponentDownward(this, 'OptionGroup')) {
+                    this.broadcast('OptionGroup', 'on-query-change', val);
+                    this.broadcast('iOption', 'on-query-change', val);
+                } else {
+                    this.broadcast('iOption', 'on-query-change', val);
+                }
+            },
+            // 处理 remote 初始值
+            updateLabel () {
+                if (this.remote) {
+                    if (!this.multiple && this.model !== '') {
+                        this.selectToChangeQuery = true;
+                        if (this.currentLabel === '') this.currentLabel = this.model;
+                        this.lastQuery = this.currentLabel;
+                        this.query = this.currentLabel;
+                    } else if (this.multiple && this.model.length) {
+                        if (this.currentLabel.length !== this.model.length) this.currentLabel = this.model;
+                        this.selectedMultiple = this.model.map((item, index) => {
+                            return {
+                                value: item,
+                                label: this.currentLabel[index]
+                            };
+                        });
+                    }
+                }
             }
         },
         mounted () {
             this.modelToQuery();
+            // 处理 remote 初始值
+            this.updateLabel();
+            this.$nextTick(() => {
+                this.broadcastQuery('');
+            });
 
             this.updateOptions(true);
             document.addEventListener('keydown', this.handleKeydown);
 
-            // watch slot changed
-            if (MutationObserver) {
-                this.observer = new MutationObserver(() => {
+            this.$on('append', () => {
+                if (!this.remote) {
                     this.modelToQuery();
-                    this.slotChange();
-                    this.updateOptions(true, true);
-                });
-
-                this.observer.observe(this.$refs.options, {
-//                attributes: true,
-                    childList: true,
-                    characterData: true,
-                    subtree: true
-                });
-            }
+                    this.$nextTick(() => {
+                        this.broadcastQuery('');
+                    });
+                } else {
+                    this.findChild(child => {
+                        child.selected = this.multiple ? this.model.indexOf(child.value) > -1 : this.model === child.value;
+                    });
+                }
+                this.slotChange();
+                this.updateOptions(true, true);
+            });
+            this.$on('remove', () => {
+                if (!this.remote) {
+                    this.modelToQuery();
+                    this.$nextTick(() => {
+                        this.broadcastQuery('');
+                    });
+                } else {
+                    this.findChild(child => {
+                        child.selected = this.multiple ? this.model.indexOf(child.value) > -1 : this.model === child.value;
+                    });
+                }
+                this.slotChange();
+                this.updateOptions(true, true);
+            });
 
             this.$on('on-select-selected', (value) => {
                 if (this.model === value) {
@@ -536,6 +679,8 @@
                         }
 
                         if (this.filterable) {
+                            // remote&filterable&multiple时，一次点多项，不应该设置true，因为无法置为false，下次的搜索会失效
+                            if (this.query !== '') this.selectToChangeQuery = true;
                             this.query = '';
                             this.$refs.input.focus();
                         }
@@ -545,7 +690,8 @@
                         if (this.filterable) {
                             this.findChild((child) => {
                                 if (child.value === value) {
-                                    this.query = child.label === undefined ? child.searchLabel : child.label;
+                                    if (this.query !== '') this.selectToChangeQuery = true;
+                                    this.lastQuery = this.query = child.label === undefined ? child.searchLabel : child.label;
                                 }
                             });
                         }
@@ -555,13 +701,15 @@
         },
         beforeDestroy () {
             document.removeEventListener('keydown', this.handleKeydown);
-            if (this.observer) {
-                this.observer.disconnect();
-            }
         },
         watch: {
             value (val) {
                 this.model = val;
+                if (val === '') this.query = '';
+            },
+            label (val) {
+                this.currentLabel = val;
+                this.updateLabel();
             },
             model () {
                 this.$emit('input', this.model);
@@ -575,34 +723,72 @@
                 } else {
                     this.updateSingleSelected();
                 }
+                // #957
+                if (!this.visible && this.filterable) {
+                    this.$nextTick(() => {
+                        this.broadcastQuery('');
+                    });
+                }
             },
             visible (val) {
                 if (val) {
-                    if (this.multiple && this.filterable) {
-                        this.$refs.input.focus();
+                    if (this.filterable) {
+                        if (this.multiple) {
+                            this.$refs.input.focus();
+                        } else {
+                            this.$refs.input.select();
+                        }
+                        if (this.remote) {
+                            this.findChild(child => {
+                                child.selected = this.multiple ? this.model.indexOf(child.value) > -1 : this.model === child.value;
+                            });
+                            // remote下，设置了默认值，第一次打开时，搜索一次
+                            const options = this.$slots.default || [];
+                            if (this.query !== '' && !options.length) {
+                                this.remoteMethod(this.query);
+                            }
+                        }
                     }
                     this.broadcast('Drop', 'on-update-popper');
                 } else {
                     if (this.filterable) {
                         this.$refs.input.blur();
+                        // #566 reset options visible
+                        setTimeout(() => {
+                            this.broadcastQuery('');
+                        }, 300);
                     }
                     this.broadcast('Drop', 'on-destroy-popper');
                 }
             },
             query (val) {
-                // todo 这里会重复
-                this.broadcast('OptionGroup', 'on-query-change', val);
-                this.broadcast('iOption', 'on-query-change', val);
-                let is_hidden = true;
-
-                this.$nextTick(() => {
-                    this.findChild((child) => {
-                        if (!child.hidden) {
-                            is_hidden = false;
-                        }
+                if (this.remote && this.remoteMethod) {
+                    if (!this.selectToChangeQuery) {
+                        this.$emit('on-query-change', val);
+                        this.remoteMethod(val);
+                    }
+                    this.focusIndex = 0;
+                    this.findChild(child => {
+                        child.isFocus = false;
                     });
-                    this.notFound = is_hidden;
-                });
+                } else {
+                    if (!this.selectToChangeQuery) {
+                        this.$emit('on-query-change', val);
+                    }
+                    this.broadcastQuery(val);
+
+                    let is_hidden = true;
+
+                    this.$nextTick(() => {
+                        this.findChild((child) => {
+                            if (!child.hidden) {
+                                is_hidden = false;
+                            }
+                        });
+                        this.notFound = is_hidden;
+                    });
+                }
+                this.selectToChangeQuery = false;
                 this.broadcast('Drop', 'on-update-popper');
             }
         }

@@ -1,7 +1,5 @@
 <template>
-    <div
-        :class="[prefixCls]"
-        v-clickoutside="handleClose">
+    <div :class="[prefixCls]" v-clickoutside="handleClose">
         <div ref="reference" :class="[prefixCls + '-rel']">
             <slot>
                 <i-input
@@ -20,7 +18,14 @@
             </slot>
         </div>
         <transition :name="transition">
-            <Drop v-show="opened" :placement="placement" ref="drop">
+            <Drop
+                @click.native="handleTransferClick"
+                v-show="opened"
+                :class="{ [prefixCls + '-transfer']: transfer }"
+                :placement="placement"
+                ref="drop"
+                :data-transfer="transfer"
+                v-transfer-dom>
                 <div ref="picker"></div>
             </Drop>
         </transition>
@@ -31,6 +36,7 @@
     import iInput from '../../components/input/input.vue';
     import Drop from '../../components/select/dropdown.vue';
     import clickoutside from '../../directives/clickoutside';
+    import TransferDom from '../../directives/transfer-dom';
     import { oneOf } from '../../utils/assist';
     import { formatDate, parseDate } from './util';
     import Emitter from '../../mixins/emitter';
@@ -139,9 +145,10 @@
     };
 
     export default {
+        name: 'CalendarPicker',
         mixins: [ Emitter ],
         components: { iInput, Drop },
-        directives: { clickoutside },
+        directives: { clickoutside, TransferDom },
         props: {
             format: {
                 type: String
@@ -187,6 +194,10 @@
             },
             options: {
                 type: Object
+            },
+            transfer: {
+                type: Boolean,
+                default: false
             }
         },
         data () {
@@ -197,6 +208,7 @@
                 picker: null,
                 internalValue: '',
                 disableClickOutSide: false,    // fixed when click a date,trigger clickoutside to close picker
+                disableCloseUnderTransfer: false,  // transfer 模式下，点击Drop也会触发关闭
                 currentValue: this.value
             };
         },
@@ -257,9 +269,18 @@
             }
         },
         methods: {
+            // 开启 transfer 时，点击 Drop 即会关闭，这里不让其关闭
+            handleTransferClick () {
+                if (this.transfer) this.disableCloseUnderTransfer = true;
+            },
             handleClose () {
+                if (this.disableCloseUnderTransfer) {
+                    this.disableCloseUnderTransfer = false;
+                    return false;
+                }
                 if (this.open !== null) return;
-                if (!this.disableClickOutSide) this.visible = false;
+//                if (!this.disableClickOutSide) this.visible = false;
+                this.visible = false;
                 this.disableClickOutSide = false;
             },
             handleFocus () {
@@ -344,6 +365,7 @@
                 this.visualValue = correctValue;
                 event.target.value = correctValue;
                 this.internalValue = correctDate;
+                this.currentValue = correctDate;
 
                 if (correctValue !== oldValue) this.emitChange(correctDate);
             },
@@ -357,8 +379,11 @@
                 this.showClose = false;
             },
             handleIconClick () {
-                if (!this.showClose) return;
-                this.handleClear();
+                if (this.showClose) {
+                    this.handleClear();
+                } else if (!this.disabled) {
+                    this.handleFocus();
+                }
             },
             handleClear () {
                 this.visible = false;
@@ -418,6 +443,14 @@
                 this.picker.resetView && this.picker.resetView();
             },
             emitChange (date) {
+                const newDate = this.formattingDate(date);
+
+                this.$emit('on-change', newDate);
+                this.$nextTick(() => {
+                    this.dispatch('FormItem', 'on-form-change', newDate);
+                });
+            },
+            formattingDate (date) {
                 const type = this.type;
                 const format = this.format || DEFAULT_FORMATS[type];
                 const formatter = (
@@ -426,12 +459,10 @@
                 ).formatter;
 
                 let newDate = formatter(date, format);
-                if (type === 'daterange' || type === 'timerange') {
+                if (type === 'daterange' || type === 'timerange' || type === 'datetimerange') {
                     newDate = [newDate.split(RANGE_SEPARATOR)[0], newDate.split(RANGE_SEPARATOR)[1]];
                 }
-
-                this.$emit('on-change', newDate);
-                this.dispatch('FormItem', 'on-form-change', newDate);
+                return newDate;
             }
         },
         watch: {
@@ -450,7 +481,7 @@
                 if (!val && this.picker && typeof this.picker.handleClear === 'function') {
                     this.picker.handleClear();
                 }
-                this.$emit('input', val);
+//                this.$emit('input', val);
             },
             value (val) {
                 this.currentValue = val;
@@ -492,14 +523,5 @@
         mounted () {
             if (this.open !== null) this.visible = this.open;
         }
-        // todo 事件
-//        events: {
-//            'on-form-blur' () {
-//                return false;
-//            },
-//            'on-form-change' () {
-//                return false;
-//            }
-//        }
     };
 </script>

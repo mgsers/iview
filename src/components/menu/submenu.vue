@@ -4,20 +4,24 @@
             <slot name="title"></slot>
             <Icon type="ios-arrow-down" :class="[prefixCls + '-submenu-title-icon']"></Icon>
         </div>
-        <ul :class="[prefixCls]" v-if="mode === 'vertical'" v-show="opened"><slot></slot></ul>
+        <collapse-transition v-if="mode === 'vertical'">
+            <ul :class="[prefixCls]" v-show="opened"><slot></slot></ul>
+        </collapse-transition>
         <transition name="slide-up" v-else>
             <Drop
                 v-show="opened"
                 placement="bottom"
                 ref="drop"
-                :style="dropStyle"><slot></slot></Drop>
+                :style="dropStyle"><ul :class="[prefixCls + '-drop-list']"><slot></slot></ul>
+            </Drop>
         </transition>
     </li>
 </template>
 <script>
     import Drop from '../select/dropdown.vue';
     import Icon from '../icon/icon.vue';
-    import { getStyle } from '../../utils/assist';
+    import CollapseTransition from '../base/collapse-transition';
+    import { getStyle, findComponentUpward } from '../../utils/assist';
     import Emitter from '../../mixins/emitter';
 
     const prefixCls = 'ivu-menu';
@@ -25,7 +29,7 @@
     export default {
         name: 'Submenu',
         mixins: [ Emitter ],
-        components: { Icon, Drop },
+        components: { Icon, Drop, CollapseTransition },
         props: {
             name: {
                 type: [String, Number],
@@ -41,7 +45,8 @@
                 prefixCls: prefixCls,
                 active: false,
                 opened: false,
-                dropWidth: parseFloat(getStyle(this.$el, 'width'))
+                dropWidth: parseFloat(getStyle(this.$el, 'width')),
+                parent: findComponentUpward(this, 'Menu')
             };
         },
         computed: {
@@ -56,12 +61,10 @@
                 ];
             },
             mode () {
-                // todo while
-                return this.$parent.mode;
+                return this.parent.mode;
             },
             accordion () {
-                // todo while
-                return this.$parent.accordion;
+                return this.parent.accordion;
             },
             dropStyle () {
                 let style = {};
@@ -77,8 +80,7 @@
 
                 clearTimeout(this.timeout);
                 this.timeout = setTimeout(() => {
-                    // todo while
-                    this.$parent.updateOpenKeys(this.name);
+                    this.parent.updateOpenKeys(this.name);
                     this.opened = true;
                 }, 250);
             },
@@ -88,8 +90,7 @@
 
                 clearTimeout(this.timeout);
                 this.timeout = setTimeout(() => {
-                    // todo while
-                    this.$parent.updateOpenKeys(this.name);
+                    this.parent.updateOpenKeys(this.name);
                     this.opened = false;
                 }, 150);
             },
@@ -98,14 +99,12 @@
                 if (this.mode === 'horizontal') return;
                 const opened = this.opened;
                 if (this.accordion) {
-                    // todo while
-                    this.$parent.$children.forEach(item => {
+                    this.parent.$children.forEach(item => {
                         if (item.$options.name === 'Submenu') item.opened = false;
                     });
                 }
                 this.opened = !opened;
-                // todo while
-                this.$parent.updateOpenKeys(this.name);
+                this.parent.updateOpenKeys(this.name);
             }
         },
         watch: {

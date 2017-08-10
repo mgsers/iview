@@ -9,7 +9,7 @@
                 </div>
             </template>
             <template v-else>
-                <Progress v-if="item.showProgress" :percent="item.percentage" hide-info></Progress>
+                <i-progress v-if="item.showProgress" :percent="item.percentage" hide-info></i-progress>
             </template>
         </div>
         <Upload
@@ -145,3 +145,31 @@
         margin: 0 2px;
     }
 </style>
+
+
+<!--<template>-->
+    <!--<div>-->
+        <!--<Upload action="//jsonplaceholder.typicode.com/posts/" :before-upload="handleBeforeUpload" ref="file">-->
+            <!--<i-button type="ghost" icon="ios-cloud-upload-outline">选择文件</i-button>-->
+        <!--</Upload>-->
+        <!--<i-button @click.native="handleUpload">上传</i-button>-->
+    <!--</div>-->
+<!--</template>-->
+<!--<script>-->
+    <!--export default {-->
+        <!--data () {-->
+            <!--return {-->
+                <!--file: null-->
+            <!--}-->
+        <!--},-->
+        <!--methods: {-->
+            <!--handleBeforeUpload (file) {-->
+                <!--this.file = file;-->
+                <!--return false;-->
+            <!--},-->
+            <!--handleUpload () {-->
+                <!--this.$refs.file.post(this.file);-->
+            <!--}-->
+        <!--}-->
+    <!--}-->
+<!--</script>-->

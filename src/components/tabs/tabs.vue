@@ -8,10 +8,12 @@
                             <div :class="barClasses" :style="barStyle"></div>
                             <div :class="tabCls(item)" v-for="(item, index) in navList" @click="handleChange(index)">
                                 <Icon v-if="item.icon !== ''" :type="item.icon"></Icon>
-                                {{ item.label }}
+                                <Render v-if="item.labelType === 'function'" :render="item.label"></Render>
+                                <template v-else>{{ item.label }}</template>
                                 <Icon v-if="showClose(item)" type="ios-close-empty" @click.native.stop="handleRemove(index)"></Icon>
                             </div>
                         </div>
+                        <div :class="[prefixCls + '-nav-right']" v-if="showSlot"><slot name="extra"></slot></div>
                     </div>
                 </div>
             </div>
@@ -21,13 +23,16 @@
 </template>
 <script>
     import Icon from '../icon/icon.vue';
+    import Render from '../base/render';
     import { oneOf, getStyle } from '../../utils/assist';
+    import Emitter from '../../mixins/emitter';
 
     const prefixCls = 'ivu-tabs';
 
     export default {
         name: 'Tabs',
-        components: { Icon },
+        mixins: [ Emitter ],
+        components: { Icon, Render },
         props: {
             value: {
                 type: [String, Number]
@@ -59,7 +64,8 @@
                 navList: [],
                 barWidth: 0,
                 barOffset: 0,
-                activeKey: this.value
+                activeKey: this.value,
+                showSlot: false
             };
         },
         computed: {
@@ -124,6 +130,7 @@
                 this.navList = [];
                 this.getTabs().forEach((pane, index) => {
                     this.navList.push({
+                        labelType: typeof pane.label,
                         label: pane.label,
                         icon: pane.icon || '',
                         name: pane.currentName || index,
@@ -181,7 +188,7 @@
             handleRemove (index) {
                 const tabs = this.getTabs();
                 const tab = tabs[index];
-                tab.$destroy(true);
+                tab.$destroy();
 
                 if (tab.currentName === this.activeKey) {
                     const newTabs = this.getTabs();
@@ -200,6 +207,7 @@
                         }
                     }
                     this.activeKey = activeKey;
+                    this.$emit('input', activeKey);
                 }
                 this.$emit('on-tab-remove', tab.currentName);
                 this.updateNav();
@@ -223,7 +231,11 @@
             activeKey () {
                 this.updateBar();
                 this.updateStatus();
+                this.broadcast('Table', 'on-visible-change', true);
             }
+        },
+        mounted () {
+            this.showSlot = this.$slots.extra !== undefined;
         }
     };
 </script>

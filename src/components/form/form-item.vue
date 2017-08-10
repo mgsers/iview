@@ -1,6 +1,6 @@
 <template>
     <div :class="classes">
-        <label :class="[prefixCls + '-label']" :style="labelStyles" v-if="label"><slot name="label">{{ label }}</slot></label>
+        <label :class="[prefixCls + '-label']" :style="labelStyles" v-if="label || $slots.label"><slot name="label">{{ label }}</slot></label>
         <div :class="[prefixCls + '-content']" :style="contentStyles">
             <slot></slot>
             <transition name="fade">
@@ -191,10 +191,17 @@
 
                 let prop = getPropByPath(model, path);
 
-                if (Array.isArray(value) && value.length > 0) {
+//                if (Array.isArray(value) && value.length > 0) {
+//                    this.validateDisabled = true;
+//                    prop.o[prop.k] = [];
+//                } else if (value !== this.initialValue) {
+//                    this.validateDisabled = true;
+//                    prop.o[prop.k] = this.initialValue;
+//                }
+                if (Array.isArray(value)) {
                     this.validateDisabled = true;
-                    prop.o[prop.k] = [];
-                } else if (value !== this.initialValue) {
+                    prop.o[prop.k] = [].concat(this.initialValue);
+                } else {
                     this.validateDisabled = true;
                     prop.o[prop.k] = this.initialValue;
                 }

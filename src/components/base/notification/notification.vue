@@ -2,9 +2,10 @@
     <div :class="classes" :style="styles">
         <Notice
             v-for="notice in notices"
-            :key="notice"
+            :key="notice.name"
             :prefix-cls="prefixCls"
             :styles="notice.styles"
+            :type="notice.type"
             :content="notice.content"
             :duration="notice.duration"
             :closable="notice.closable"
@@ -15,7 +16,6 @@
     </div>
 </template>
 <script>
-    // todo :key="notice"
     import Notice from './notice.vue';
 
     const prefixCls = 'ivu-notification';
@@ -82,13 +82,15 @@
             },
             close (name) {
                 const notices = this.notices;
-
                 for (let i = 0; i < notices.length; i++) {
                     if (notices[i].name === name) {
                         this.notices.splice(i, 1);
                         break;
                     }
                 }
+            },
+            closeAll () {
+                this.notices = [];
             }
         }
     };

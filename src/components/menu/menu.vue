@@ -2,7 +2,7 @@
     <ul :class="classes" :style="styles"><slot></slot></ul>
 </template>
 <script>
-    import { oneOf } from '../../utils/assist';
+    import { oneOf, findComponentsDownward } from '../../utils/assist';
     import Emitter from '../../mixins/emitter';
 
     const prefixCls = 'ivu-menu';
@@ -69,7 +69,7 @@
         },
         methods: {
             updateActiveName () {
-                if (!this.currentActiveName) {
+                if (this.currentActiveName === undefined) {
                     this.currentActiveName = -1;
                 }
                 this.broadcast('Submenu', 'on-update-active-name', false);
@@ -81,14 +81,20 @@
                     this.openNames.splice(index, 1);
                 } else {
                     this.openNames.push(name);
+                    if (this.accordion) {
+                        this.openNames.splice(0, this.openNames.length);
+                        this.openNames.push(name);
+                    }
                 }
             },
             updateOpened () {
-                this.$children.forEach(item => {
-                    if (item.$options.name === 'Submenu') {
+                const items = findComponentsDownward(this, 'Submenu');
+
+                if (items.length) {
+                    items.forEach(item => {
                         if (this.openNames.indexOf(item.name) > -1) item.opened = true;
-                    }
-                });
+                    });
+                }
             }
         },
         mounted () {

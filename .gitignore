@@ -7,6 +7,7 @@
 *.bak
 .DS_Store
 node_modules/
+node_modules2/
 .project
 .settings
 npm-debug.log
@@ -19,3 +20,4 @@ examples/dist/
 dist/
 yarn-error.log
 test/unit/coverage
+.vscode

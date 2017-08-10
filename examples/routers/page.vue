@@ -1,19 +1,19 @@
 <template>
     <div>
-        <Page :total="1000" show-sizer show-elevator show-total class="classr" :style="{float: 'right'}" @on-page-size-change="pc"></Page>
-        <br><br>
-        <Page :total="1000" show-sizer show-elevator show-total size="small" class="classr2"></Page>
-        <br><br>
-        <Page :current="2" :total="50" simple></Page>
+        <Page :total="total" show-sizer show-elevator show-total></Page>
+        <Button type="primary" @click="subject">- 1</Button>
     </div>
 </template>
 <script>
-    import { Page } from 'iview';
     export default {
-        components: { Page },
+        data () {
+            return {
+                total: 21
+            }
+        },
         methods: {
-            pc (page) {
-                console.log(page)
+            subject() {
+                this.total -= 1;
             }
         }
     }

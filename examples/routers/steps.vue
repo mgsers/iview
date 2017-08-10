@@ -45,7 +45,7 @@
         <Step title="步骤4"></Step>
     </Steps>
     <br>
-    <Button type="primary" @click.native="next">下一步</Button>
+    <i-button type="primary" @click.native="next">下一步</i-button>
     <br><br><br>
     <Steps :current="1" direction="vertical" size="small">
         <Step title="已完成" content="这里是该步骤的描述信息这里是该步骤的描述信息这里是该步骤的描述信息"></Step>
@@ -60,19 +60,24 @@
         <Step title="待进行" content="这里是该步骤的描述信息"></Step>
         <Step title="待进行" content="这里是该步骤的描述信息"></Step>
     </Steps>
+    <Steps direction="vertical" :current="3">
+        <Step title="已完成" content="这里是该步骤的描述信息">
+            <div style="font-size: 16px; color: green">这里是该步骤的描述信息1</div>
+        </Step>
+        <Step title="进行中" content="这里是该步骤的描述信息">
+            <div style="font-size: 24px; color: red">这里是该步骤的描述信息2</div>
+        </Step>
+        <Step title="待进行" content="这里是该步骤的描述信息">
+            <div style="font-size: 46px; color: blue">这里是该步骤的描述信息3</div>
+        </Step>
+        <Step title="待进行" content="这里是该步骤的描述信息">
+            <div style="font-size: 24px; color: green">这里是该步骤的描述信息4</div>
+        </Step>
+    </Steps>
 </div>
 </template>
 <script>
-    import { Steps, Button } from 'iview';
-
-    const Step = Steps.Step;
-
     export default {
-        components: {
-            Steps,
-            Step,
-            Button
-        },
         props: {
 
         },
